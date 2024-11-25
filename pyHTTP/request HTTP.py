@@ -35,6 +35,7 @@ def print_status(response):
 
 def test_server_reachability(base_url):
     """Controlla se il server è raggiungibile."""
+    print(f"[DEBUG] Test della connessione a: {base_url}")
     try:
         response = requests.get(base_url)
         if response.status_code == 200:
@@ -68,7 +69,7 @@ def login(base_url, username, password, session):
     except requests.RequestException as e:
         print(f"[ERROR] Login fallito: {e}")
 
-def send_request(base_url, method, endpoint, session, data=None):
+def send_request(method, base_url, endpoint, session, data=None):
     """Gestisce le richieste HTTP generiche."""
     url = base_url + endpoint
     try:
@@ -111,8 +112,33 @@ if __name__ == "__main__":
     # Login
     login(BASE_URL, username, password, session)
 
-    # Esempi di richieste
-    send_request(BASE_URL, "GET", "vulnerabilities/brute/", session)
-    send_request(BASE_URL, "POST", "vulnerabilities/brute/", session, data={'username': 'test', 'password': 'test'})
-    send_request(BASE_URL, "PUT", "vulnerabilities/sqli/", session, data={'id': '1', 'name': 'test'})
-    send_request(BASE_URL, "DELETE", "vulnerabilities/sqli/?id=1", session)
+    # Seleziona il tipo di richiesta
+    print("\nQuale tipo di richiesta vuoi fare?")
+    print("[1] GET")
+    print("[2] POST")
+    print("[3] PUT")
+    print("[4] DELETE")
+    choice = input("Seleziona l'opzione (1/2/3/4): ").strip()
+
+    if choice == "1":
+        method = "GET"
+    elif choice == "2":
+        method = "POST"
+        endpoint = input("Inserisci l'endpoint per POST (es: vulnerabilities/brute/): ").strip()
+        data = input("Inserisci i dati da inviare (come dizionario, es. {'username': 'test', 'password': 'test'}): ")
+        data = eval(data)  # Attenzione a questa funzione per motivi di sicurezza
+    elif choice == "3":
+        method = "PUT"
+        endpoint = input("Inserisci l'endpoint per PUT (es: vulnerabilities/sqli/): ").strip()
+        data = input("Inserisci i dati da inviare (come dizionario, es. {'id': '1', 'name': 'test'}): ")
+        data = eval(data)  # Attenzione a questa funzione per motivi di sicurezza
+    elif choice == "4":
+        method = "DELETE"
+        endpoint = input("Inserisci l'endpoint per DELETE (es: vulnerabilities/sqli/?id=1): ").strip()
+        data = None
+    else:
+        print("[ERROR] Opzione non valida. Uscita...")
+        exit()
+
+    # Esegui la richiesta
+    send_request(method, BASE_URL, endpoint, session, data)
