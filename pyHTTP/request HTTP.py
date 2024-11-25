@@ -6,7 +6,7 @@ from datetime import datetime
 LOG_DIR = "http_logs"
 
 def initialize_log():
-    """Crea la directory per i log."""
+    """Crea la directory per i log se non esiste già."""
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     # Input dinamico dell'indirizzo IP e credenziali
     metasploitable_ip = input("Inserisci l'indirizzo IP del server Metasploitable: ").strip()
-    BASE_URL = f"http://{metasploitable_ip}/dvwa/"
+    BASE_URL = f"https://{metasploitable_ip}/DVWA/"
     print(f"[INFO] URL base configurato: {BASE_URL}")
 
     # Controllo della raggiungibilità del server
@@ -124,17 +124,35 @@ if __name__ == "__main__":
         method = "GET"
     elif choice == "2":
         method = "POST"
-        endpoint = input("Inserisci l'endpoint per POST (es: vulnerabilities/brute/): ").strip()
+        print("Endpoint disponibili per POST:")
+        print(" 1. vulnerabilities/sqli/")
+        print(" 2. vulnerabilities/brute/")
+        print(" 3. vulnerabilities/csrf/")
+        endpoint_choice = input("Seleziona l'endpoint (1/2/3): ").strip()
+        if endpoint_choice == "1":
+            endpoint = "vulnerabilities/sqli/"
+        elif endpoint_choice == "2":
+            endpoint = "vulnerabilities/brute/"
+        elif endpoint_choice == "3":
+            endpoint = "vulnerabilities/csrf/"
         data = input("Inserisci i dati da inviare (come dizionario, es. {'username': 'test', 'password': 'test'}): ")
         data = eval(data)  # Attenzione a questa funzione per motivi di sicurezza
     elif choice == "3":
         method = "PUT"
-        endpoint = input("Inserisci l'endpoint per PUT (es: vulnerabilities/sqli/): ").strip()
+        print("Endpoint disponibili per PUT:")
+        print(" 1. vulnerabilities/sqli/")
+        endpoint_choice = input("Seleziona l'endpoint (1): ").strip()
+        if endpoint_choice == "1":
+            endpoint = "vulnerabilities/sqli/"
         data = input("Inserisci i dati da inviare (come dizionario, es. {'id': '1', 'name': 'test'}): ")
         data = eval(data)  # Attenzione a questa funzione per motivi di sicurezza
     elif choice == "4":
         method = "DELETE"
-        endpoint = input("Inserisci l'endpoint per DELETE (es: vulnerabilities/sqli/?id=1): ").strip()
+        print("Endpoint disponibili per DELETE:")
+        print(" 1. vulnerabilities/sqli/?id=1")
+        endpoint_choice = input("Seleziona l'endpoint (1): ").strip()
+        if endpoint_choice == "1":
+            endpoint = "vulnerabilities/sqli/?id=1"
         data = None
     else:
         print("[ERROR] Opzione non valida. Uscita...")
@@ -142,3 +160,4 @@ if __name__ == "__main__":
 
     # Esegui la richiesta
     send_request(method, BASE_URL, endpoint, session, data)
+
