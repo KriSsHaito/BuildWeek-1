@@ -56,9 +56,13 @@ def main():
     initialize_log_directory()
 
     # Inserisci l'IP della macchina host
-    ip_host = input("Inserisci l'indirizzo IP della macchina host (es. 192.168.1.100): ").strip()
-    base_url = input(f"http://{ip_host}/")
-    print(f"[INFO] URL base configurato: {base_url}")
+    while True:
+        ip_host = input("Inserisci l'indirizzo IP della macchina host o l'URL completo")
+        if is_valid_url(ip_host):
+            base_url = ip_host.rstrip("/")
+            break
+        print ("[ERRORE] URL non valido. Riprova")
+    print (f"[INFO] URL base configurato: {base_url}")
 
     # Scelta del tipo di richiesta HTTP
     print("\nSeleziona il tipo di richiesta HTTP:")
