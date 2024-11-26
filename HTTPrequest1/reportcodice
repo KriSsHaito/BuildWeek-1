@@ -1,0 +1,48 @@
+STRUTTURA DEL CODICE:
+
+Lo script ha diversi obiettivi principali:
+
+1. Inserimento dell'indirizzo IP della macchina host per rendere lo script più versatile:
+Chiede al'utente l'indirizzo IP per costruire l'URL base.
+
+2. Selezione del tipo di richiesta HTTP: 
+Permette di scegliere tra le varie richieste HTTP(GET,POST,PUT,DELETE,HEAD, o OPTIONS)
+
+3.Permette di inserire un endpoint specifico da aggiungere all'URL base (es. login.php o setup.php)
+
+4. Salvataggio delle risposte: Crea una cartella per i log e salva ogni risposta HTTP in un file.
+
+LIBRERIE UTILIZZATE:
+
+1. requests:
+Questa libreria viene utilizzata per inviare richieste HTTP, è una libreria molto popolare, versatile 
+e molto semplice da usare.
+Si può trovare la documentazione a riguardo al seguente indirizzo:
+https://requests.readthedocs.io/projects/it/it/latest/
+Vari esempi di utilizzi della libreria nel codice:
+. requests.get(url): Effettua una richiesta GET a un URL
+. requests.post(url, data): Effettua una richiesta POST con dati
+
+utilizzi simili sono stati fatti per quanto riguarda altre richieste HTTP non dimostrate sopra nell'esempio
+
+
+
+2. os:
+Il modulo os fornisce funzioni per interagire con il sistema operativo. In questo script, lo usiamo per
+creare la cartella dei log dove saranno salvate tutte le richieste effettuate.
+Esempi di utilizzo nel codice:
+. os.path.exists(path): Controlla se un file o una directory esiste.
+. os.makedirs(path): Crea una directory nel percorso specificato.
+La documentazione riguardo questa libreria è disponibile al seguente indirizzo:
+https://docs.python.org/it/3.13/library/os.html#module-os
+
+3.datetime:
+la libreria datetime viene usato per ottenere la data e l'ora corrente. Serve per generare timestamp univoci
+per i file di log, evitando conflitti nei nomi dei file delle richieste effettuate
+esempi di utilizzo nel nostro script:
+. datetime.now(): Ottiene la data e l'ora corrente
+. .strftime(format): Formatta la data e l'ora come stringa (es. '%Y%m%d' restituisce 20241125_153210)
+La documentazione riguardo questo modulo è reperibile al seguente URL:
+https://docs.python.org/it/3.13/library/datetime.html#module-datetime
+
+ 
