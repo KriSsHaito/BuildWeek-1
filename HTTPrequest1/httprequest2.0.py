@@ -57,7 +57,7 @@ def main():
 
     # Inserisci l'IP della macchina host
     ip_host = input("Inserisci l'indirizzo IP della macchina host (es. 192.168.1.100): ").strip()
-    base_url = f"http://{ip_host}/DVWA"
+    base_url = input(f"http://{ip_host}/")
     print(f"[INFO] URL base configurato: {base_url}")
 
     # Scelta del tipo di richiesta HTTP
