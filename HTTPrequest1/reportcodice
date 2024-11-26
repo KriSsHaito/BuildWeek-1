@@ -45,4 +45,159 @@ esempi di utilizzo nel nostro script:
 La documentazione riguardo questo modulo è reperibile al seguente URL:
 https://docs.python.org/it/3.13/library/datetime.html#module-datetime
 
- 
+
+SPIEGAZIONE DEL CODICE:
+
+1. Configurazione della directory per i log:
+
+LOG_DIR = "http_request_logs"
+
+def initialize_log_directory():
+    """Crea la directory per i log se non esiste già."""
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
+
+.creiamo una variabile "LOG_DIR"= "http_request_logs" il valore della nostra variabile sarà la directory che creeremo per salvare i log delle nostre richieste
+
+.La funzione initialize_log_directory controlla se la directory esiste, se non esiste la crea con os.makedirs()
+
+
+2. Salvataggio dei log:
+
+def save_log(method, endpoint, response):
+    """Salva i dettagli della richiesta e della risposta in un file di log."""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{LOG_DIR}/{method}_{endpoint.replace('/', '_')}_{timestamp}.txt"
+    with open(filename, "w", encoding="utf-8") as file:
+        file.write(f"Metodo HTTP: {method}\n")
+        file.write(f"Endpoint: {endpoint}\n")
+        file.write(f"URL completo: {response.url}\n")
+        file.write(f"Status Code: {response.status_code}\n")
+        file.write(f"Headers:\n{response.headers}\n\n")
+        
+        if method not in ["HEAD"]:  # HEAD non ha un corpo nella risposta
+            file.write("Risposta:\n")
+            file.write(response.text)
+    print(f"[LOG] Risposta salvata in: {filename}")
+
+
+
+datetime.now().strftime('%Y%m%d_%H%M%S'): crea un timestamp unico per identificare i file di log
+
+filename è il nome del file di log. e combina:
+
+.Metodo HTTP(es. GET, DELETE)
+.Endpoint(es. login.php)
+.Timestamp
+
+with open(filename, "w", encoding="utf-8"): Apre il file in modalità scrittura. Il blocco with assicura che il file venga chiuso correttamente
+
+salviamo nel file:
+
+.Metodo HTTP, endpoint e URL completo 
+
+.Status code della risposta.
+
+.Headers e corpo della risposta
+
+
+INVIO DELLE RICHIESTE:
+
+def send_request(base_url, method, endpoint, data=None):
+    """Invia una richiesta HTTP e salva il risultato."""
+    url = f"{base_url}/{endpoint}"
+    try:
+        if method == "GET":
+            response = requests.get(url)
+        elif method == "POST":
+            response = requests.post(url, data=data)
+        elif method == "PUT":
+            response = requests.put(url, data=data)
+        elif method == "DELETE":
+            response = requests.delete(url)
+        elif method == "HEAD":
+            response = requests.head(url)
+        elif method == "OPTIONS":
+            response = requests.options(url)
+        else:
+            print("[ERRORE] Metodo HTTP non supportato.")
+            return
+
+        print(f"[RISPOSTA] Status Code: {response.status_code}")
+        save_log(method, endpoint, response)
+    except requests.RequestException as e:
+        print(f"[ERRORE] Richiesta {method} fallita: {e}")
+
+
+. base_url: URL base (es. http://127.0.0.1/DVWA)
+
+. endpoint: Endpoint specifico scelto dall'utente (es. login.php)
+
+. A seconda del metodo scelto(GET,POST, ecc) lo script invia la richiesta HTTP con i dati forniti.
+
+.response: Contiene i dettagli della risposta dal server.
+
+.Eccezioni: Se si verifica un errore durante la richiesta (es. connessione fallita), viene stampato un messaggio di errore
+
+
+INTERAZIONE CON L'UTENTE:
+
+def main():
+    initialize_log_directory()
+    ip_host = input("Inserisci l'indirizzo IP della macchina host (es. 192.168.1.100): ").strip()
+    base_url = f"http://{ip_host}/DVWA"
+    print(f"[INFO] URL base configurato: {base_url}")
+
+    print("\nSeleziona il tipo di richiesta HTTP:")
+    print("[1] GET")
+    print("[2] POST")
+    print("[3] PUT")
+    print("[4] DELETE")
+    print("[5] HEAD")
+    print("[6] OPTIONS")
+    method_choice = input("Inserisci il numero della scelta (1/2/3/4/5/6): ").strip()
+
+    method = None
+if method_choice == "1":
+    method = "GET"
+elif method_choice == "2":
+    method = "POST"
+elif method_choice == "3":
+    method = "PUT"
+elif method_choice == "4":
+    method = "DELETE"
+elif method_choice == "5":
+    method = "HEAD"
+elif method_choice == "6":
+    method = "OPTIONS"
+else:
+    print("[ERRORE] Scelta non valida.")
+    return
+
+ # Inserisci l'endpoint
+    endpoint = input("Inserisci l'endpoint relativo (es. login.php): ").strip()
+
+    # Dati da inviare (solo per POST o PUT)
+    data = None
+    if method in ["POST", "PUT"]:
+        data_input = input("Inserisci i dati da inviare (es. username=admin&password=password), lascia vuoto per nessun dato: ").strip()
+        if data_input:
+            data = dict(item.split("=") for item in data_input.split("&"))
+
+    # Invia la richiesta
+    send_request(base_url, method, endpoint, data)
+
+if __name__ == "__main__":
+    main()
+
+Lo script chiede all'utente:
+
+1. IP Host: Costruisce l'url base.
+
+2. Metodo HTTP: Permette di scegliere quale richiesta eseguire
+
+3. Endpoint: Specifica la pagina o risorsa del server.
+
+4. Dati(opzionale): Solo per POST o PUT, permette di inserire dati da inviare.
+
+il flusso principae è gestito dalla funzione main() .
