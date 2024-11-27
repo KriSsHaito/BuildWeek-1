@@ -40,6 +40,8 @@ def send_request(url, method, data=None, headers=None):
             response = requests.head(url, headers=headers)
         elif method == "OPTIONS":
             response = requests.options(url, headers=headers)
+            print("[RISPOSTA OPTIONS] Headers disponibili:")
+            print(response.headers)
         else:
             print("[ERRORE] Metodo HTTP non supportato.")
             return
@@ -112,4 +114,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
