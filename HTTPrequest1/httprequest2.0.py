@@ -1,159 +1,138 @@
 import requests
+import json
 import os
 from datetime import datetime
-from urllib.parse import urlparse
-import json
 
-LOG_DIR = "http_request_logs"
-session = requests.Session()
-
-def initialize_log_directory():
-    """Crea la directory per i log se non esiste già."""
-    if not os.path.exists(LOG_DIR):
-        os.makedirs(LOG_DIR)
-
-def save_log(method, url, response, data=None, headers=None):
-    """Salva i dettagli della richiesta e della risposta in un file di log."""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    sanitized_url = url.replace("/", "_").replace(":", "_")
-    filename = f"{LOG_DIR}/{method}_{sanitized_url}_{timestamp}.txt"
-    with open(filename, "w", encoding="utf-8") as file:
-        file.write(f"Metodo HTTP: {method}\n")
-        file.write(f"URL: {url}\n")
-        file.write(f"Status Code: {response.status_code}\n")
-        file.write(f"Headers di risposta:\n{response.headers}\n\n")
-        if data:
-            file.write(f"Dati inviati: {data}\n\n")
-        if headers:
-            file.write(f"Headers personalizzati:\n{headers}\n\n")
-        file.write("Risposta:\n")
-        file.write(response.text)
-    print(f"[LOG] Risposta salvata in: {filename}")
-
-def analyze_response(response):
-    """Analizza la risposta per identificare eventuali problemi."""
-    print("[DEBUG] Contenuto della risposta ricevuta:")
-    print(response.text[:500])  # Stampa solo i primi 500 caratteri per il debug
-
-    if "Login failed" in response.text or "Invalid username" in response.text:
-        print("[INFO] Login fallito. Credenziali non valide.")
-    elif "Welcome to the" in response.text or "Dashboard" in response.text:
-        print("[INFO] Login riuscito.")
-    else:
-        print("[INFO] Nessun pattern riconosciuto nella risposta. Verifica manuale necessaria.")
-
-def get_headers():
-    """Permette all'utente di aggiungere header personalizzati."""
+# Funzione per ottenere i dati dall'utente
+def get_user_input():
+    print("\n=== Configurazione della richiesta ===")
+    url = input("Inserisci l'URL (es: http://127.0.0.1/DVWA/): ").strip()
+    endpoint = input("Inserisci l'endpoint (es: login.php): ").strip()
+    method = input("Inserisci il metodo HTTP (GET, POST, PUT, DELETE): ").strip().upper()
     headers = {}
-    while True:
-        add_header = input("Vuoi aggiungere un header personalizzato? (s/n): ").strip().lower()
-        if add_header == "s":
-            key = input("Inserisci il nome dell'header (es. Authorization): ").strip()
-            value = input("Inserisci il valore dell'header: ").strip()
+    use_headers = input("Vuoi aggiungere headers personalizzati? (s/n): ").strip().lower()
+    if use_headers == 's':
+        while True:
+            key = input("Header key (lascia vuoto per terminare): ").strip()
+            if not key:
+                break
+            value = input(f"Valore per {key}: ").strip()
             headers[key] = value
-        else:
-            break
-    return headers
 
-def get_data():
-    """Permette all'utente di inserire i dati in modo semplice."""
-    print("\nSeleziona il formato dei dati:")
-    print("[1] Parametri (es. chiave1=valore1&chiave2=valore2)")
-    print("[2] JSON")
-    choice = input("Scegli il formato dei dati (1/2): ").strip()
-    
-    data = None
-    if choice == "1":
-        data_input = input("Inserisci i dati (es. chiave=valore, separati da &): ").strip()
-        try:
-            data = dict(item.split("=") for item in data_input.split("&"))
-        except ValueError:
-            print("[ERRORE] Formato non valido! Riprova.")
-            return get_data()
-    elif choice == "2":
-        json_input = input("Inserisci i dati JSON (es. {\"chiave\": \"valore\"}): ").strip()
-        try:
-            data = json.loads(json_input)
-        except json.JSONDecodeError:
-            print("[ERRORE] JSON non valido! Riprova.")
-            return get_data()
-    else:
-        print("[ERRORE] Scelta non valida!")
-        return get_data()
-    
-    return data
+    payload = None
+    if method in ['POST', 'PUT']:
+        use_payload = input("Vuoi aggiungere un payload? (s/n): ").strip().lower()
+        if use_payload == 's':
+            payload = input("Inserisci il payload in formato JSON: ").strip()
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError:
+                print("Errore: il payload non è un JSON valido.")
+                return None
 
-def send_request(url, method, data=None, headers=None):
-    """Invia una richiesta HTTP, salva il risultato e analizza la risposta."""
+    return url, endpoint, method, headers, payload
+
+# Funzione per inviare la richiesta
+def send_request(url, endpoint, method, headers, payload):
+    full_url = f"{url.rstrip('/')}/{endpoint.lstrip('/')}"
     try:
-        if method == "GET":
-            response = session.get(url, headers=headers, allow_redirects=False)
-        elif method == "POST":
-            response = session.post(url, data=data, headers=headers, allow_redirects=False)
-        elif method == "PUT":
-            response = session.put(url, data=data, headers=headers, allow_redirects=False)
-        elif method == "DELETE":
-            response = session.delete(url, headers=headers, allow_redirects=False)
+        if method == 'GET':
+            response = requests.get(full_url, headers=headers)
+        elif method == 'POST':
+            response = requests.post(full_url, headers=headers, data=payload)
+        elif method == 'PUT':
+            response = requests.put(full_url, headers=headers, data=payload)
+        elif method == 'DELETE':
+            response = requests.delete(full_url, headers=headers)
         else:
-            print("[ERRORE] Metodo HTTP non supportato.")
-            return
+            print("Metodo HTTP non supportato.")
+            return None
 
-        # Debug dei reindirizzamenti
-        if response.status_code in [301, 302]:
-            print(f"[INFO] Reindirizzamento rilevato verso: {response.headers.get('Location')}")
-        
-        print(f"[RISPOSTA] Status Code: {response.status_code}")
-        analyze_response(response)
-        save_log(method, url, response, data, headers)
-    except requests.RequestException as e:
-        print(f"[ERRORE] Richiesta {method} fallita: {e}")
+        return response
+    except requests.exceptions.RequestException as e:
+        print(f"Errore nella richiesta: {e}")
+        return None
 
-def is_valid_url(url):
-    """Verifica che l'URL fornito sia valido."""
-    parsed = urlparse(url)
-    return bool(parsed.scheme and parsed.netloc)
+# Funzione per salvare la richiesta e risposta in un file
+def save_response(request_data, response):
+    # Creare una cartella per i log
+    folder_name = "http_logs"
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
 
-def main():
-    # Inizializza la directory dei log
-    initialize_log_directory()
+    # Nome file basato sul timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    file_name = f"{folder_name}/log_{timestamp}.txt"
 
-    # Inserisci l'URL completo
-    url = input("Inserisci l'URL completo della richiesta (es. http://127.0.0.1/DVWA/login.php): ").strip()
-    if not is_valid_url(url):
-        print("[ERRORE] L'URL fornito non è valido. Assicurati di includere http:// o https://.")
+    # Preparare il contenuto del file
+    with open(file_name, "w") as file:
+        file.write("=== Dettagli della richiesta ===\n")
+        file.write(f"URL: {request_data['url']}\n")
+        file.write(f"Endpoint: {request_data['endpoint']}\n")
+        file.write(f"Metodo HTTP: {request_data['method']}\n")
+        file.write(f"Headers: {json.dumps(request_data['headers'], indent=4)}\n")
+        if request_data['payload']:
+            file.write(f"Payload: {json.dumps(request_data['payload'], indent=4)}\n")
+
+        file.write("\n=== Dettagli della risposta ===\n")
+        file.write(f"Status Code: {response.status_code}\n")
+        file.write(f"Headers della risposta: {json.dumps(dict(response.headers), indent=4)}\n")
+        try:
+            file.write(f"Contenuto della risposta (JSON): {json.dumps(response.json(), indent=4)}\n")
+        except ValueError:
+            file.write(f"Contenuto della risposta (testo):\n{response.text}\n")
+
+    print(f"Risposta salvata in: {file_name}")
+
+# Funzione per analizzare la risposta
+def parse_response(response):
+    if not response:
+        print("Nessuna risposta ricevuta.")
         return
+    print("\n=== Risultato della richiesta ===")
+    print(f"Status Code: {response.status_code}")
+    print("Headers della risposta:")
+    for key, value in response.headers.items():
+        print(f"{key}: {value}")
 
-    # Scelta del tipo di richiesta HTTP
-    print("\nSeleziona il tipo di richiesta HTTP:")
-    print("[1] GET")
-    print("[2] POST")
-    print("[3] PUT")
-    print("[4] DELETE")
-    method_choice = input("Inserisci il numero della scelta (1/2/3/4): ").strip()
+    print("\nContenuto della risposta:")
+    try:
+        print(response.json())
+    except ValueError:
+        print(response.text)
 
-    method = None
-    if method_choice == "1":
-        method = "GET"
-    elif method_choice == "2":
-        method = "POST"
-    elif method_choice == "3":
-        method = "PUT"
-    elif method_choice == "4":
-        method = "DELETE"
+    if "Login Failed" in response.text:
+        print("\nRisultato: Login fallito.")
+    elif "Welcome" in response.text or "Success" in response.text:
+        print("\nRisultato: Login avvenuto con successo.")
     else:
-        print("[ERRORE] Scelta non valida.")
-        return
+        print("\nImpossibile determinare il risultato del login.")
 
-    # Dati e header da inviare
-    data = None
-    headers = None
-    if method in ["POST", "PUT", "DELETE"]:
-        headers = get_headers()
-        if method != "DELETE":  # DELETE non richiede sempre dati
-            data = get_data()
+# Funzione principale
+def main():
+    while True:
+        user_input = get_user_input()
+        if not user_input:
+            continue
+        url, endpoint, method, headers, payload = user_input
+        response = send_request(url, endpoint, method, headers, payload)
 
-    # Invia la richiesta
-    send_request(url, method, data, headers)
+        if response:
+            # Salvataggio della richiesta e risposta
+            request_data = {
+                "url": url,
+                "endpoint": endpoint,
+                "method": method,
+                "headers": headers,
+                "payload": payload
+            }
+            save_response(request_data, response)
+
+        parse_response(response)
+
+        repeat = input("\nVuoi effettuare un'altra richiesta? (s/n): ").strip().lower()
+        if repeat != 's':
+            break
 
 if __name__ == "__main__":
     main()
