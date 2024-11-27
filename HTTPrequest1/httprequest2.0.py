@@ -1,104 +1,96 @@
-import requests
 import os
-from datetime import datetime
-from urllib.parse import urlparse
 import json
+import requests
 
-# Configurazione della directory per i log
-LOG_DIR = "http_request_logs"
+# Creazione della cartella per salvare le risposte
+output_dir = "http_responses"
+os.makedirs(output_dir, exist_ok=True)
 
-def initialize_log_directory():
-    """Crea la directory per i log se non esiste già."""
-    if not os.path.exists(LOG_DIR):
-        os.makedirs(LOG_DIR)
+# Configurare una sessione persistente
+session = requests.Session()
+session.headers.update({"User-Agent": "CybersecurityScript/1.0"})
 
-def save_log(method, url, response):
-    """Salva i dettagli della richiesta e della risposta in un file di log."""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    sanitized_url = url.replace('/', '_').replace(':', '_').replace('?', '_')
-    filename = f"{LOG_DIR}/{method}_{sanitized_url}_{timestamp}.txt"
-    with open(filename, "w", encoding="utf-8") as file:
-        file.write(f"Metodo HTTP: {method}\n")
-        file.write(f"URL completo: {response.url}\n")
-        file.write(f"Status Code: {response.status_code}\n")
-        file.write(f"Headers:\n{response.headers}\n\n")
-        file.write("Risposta:\n")
-        file.write(response.text)
-    print(f"[LOG] Risposta salvata in: {filename}")
-
-def send_request(url, method, json_data=None):
-    """Invia una richiesta HTTP e salva il risultato."""
+# Funzione per eseguire una richiesta HTTP
+def perform_request(method, url, data=None):
     try:
         if method == "GET":
-            response = requests.get(url)
+            response = session.get(url)
         elif method == "POST":
-            response = requests.post(url, json=json_data)
+            response = session.post(url, json=data)
         elif method == "PUT":
-            response = requests.put(url, json=json_data)
+            response = session.put(url, json=data)
         elif method == "DELETE":
-            response = requests.delete(url)
+            response = session.delete(url)
         else:
-            print("[ERRORE] Metodo HTTP non supportato.")
-            return
+            print(f"Metodo {method} non supportato")
+            return None
 
-        print(f"[RISPOSTA] Status Code: {response.status_code}")
-        save_log(method, url, response)
+        # Salva la risposta in un file
+        save_response(url, method, response)
+        return response
     except requests.RequestException as e:
-        print(f"[ERRORE] Richiesta {method} fallita: {e}")
+        print(f"Errore durante la richiesta {method} a {url}: {e}")
+        return None
 
-def is_valid_url(url):
-    """Verifica che l'URL fornito sia valido."""
-    parsed = urlparse(url)
-    return bool(parsed.scheme and parsed.netloc)
+# Funzione per salvare la risposta in un file JSON
+def save_response(url, method, response):
+    file_name = f"{method}_{url.replace('/', '_').replace(':', '')}.json"
+    file_path = os.path.join(output_dir, file_name)
 
-def main():
-    # Inizializza la directory dei log
-    initialize_log_directory()
+    # Contenuto da salvare
+    response_content = {
+        "url": response.url,
+        "status_code": response.status_code,
+        "headers": dict(response.headers),
+        "content": response.text,
+    }
 
-    # Inserisci l'URL completo
-    url = input("Inserisci l'URL completo (es. http://192.168.1.100/DVWA/login.php): ").strip()
-    if not is_valid_url(url):
-        print("[ERRORE] URL non valido. Assicurati di includere http:// o https:// e un dominio valido.")
-        return
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(response_content, f, indent=4)
+    print(f"Risposta salvata in {file_path}")
 
-    # Scelta del tipo di richiesta HTTP
-    print("\nSeleziona il tipo di richiesta HTTP:")
-    print("[1] GET")
-    print("[2] POST")
-    print("[3] PUT")
-    print("[4] DELETE")
-    method_choice = input("Inserisci il numero della scelta (1/2/3/4): ").strip()
-
-    method = None
-    if method_choice == "1":
-        method = "GET"
-    elif method_choice == "2":
-        method = "POST"
-    elif method_choice == "3":
-        method = "PUT"
-    elif method_choice == "4":
-        method = "DELETE"
-    else:
-        print("[ERRORE] Scelta non valida.")
-        return
-
-    # Dati in formato JSON da inviare (solo per POST o PUT)
-    json_data = None
+# Funzione per ottenere i dati da inviare (per POST e PUT)
+def get_data_for_method(method):
     if method in ["POST", "PUT"]:
-        print("\nInserisci i dati da inviare in formato JSON.")
-        print("Esempio (richiesta di login):")
-        print('{"username": "admin", "password": "password123"}')
-        json_input = input("Inserisci i dati JSON: ").strip()
+        data_input = input(f"Inserisci i dati in formato JSON per la richiesta {method}: ")
         try:
-            json_data = json.loads(json_input) if json_input else None
+            data = json.loads(data_input)
+            return data
         except json.JSONDecodeError:
-            print("[ERRORE] Formato JSON non valido. Assicurati di utilizzare una sintassi corretta.")
-            return
+            print("Errore nel formato JSON. Assicurati di fornire un JSON valido.")
+            return None
+    return None
 
-    # Invia la richiesta
-    send_request(url, method, json_data)
+# Funzione per scegliere la richiesta
+def choose_request():
+    print("Scegli il tipo di richiesta HTTP:")
+    print("1. GET")
+    print("2. POST")
+    print("3. PUT")
+    print("4. DELETE")
+    method_choice = input("Inserisci il numero corrispondente alla richiesta (1-4): ")
 
+    method_mapping = {
+        "1": "GET",
+        "2": "POST",
+        "3": "PUT",
+        "4": "DELETE",
+    }
+
+    method = method_mapping.get(method_choice)
+    if not method:
+        print("Scelta non valida.")
+        return
+
+    url = input("Inserisci l'URL della richiesta: ")
+
+    # Se la richiesta è POST o PUT, chiedi i dati
+    data = get_data_for_method(method)
+
+    # Esegui la richiesta
+    perform_request(method, url, data)
+
+# Esegui il programma
 if __name__ == "__main__":
-    main()
-
+    choose_request()
 
