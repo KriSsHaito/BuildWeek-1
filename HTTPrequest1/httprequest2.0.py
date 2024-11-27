@@ -1,110 +1,115 @@
 import os
-import json
 import requests
+import json
+from datetime import datetime
 
-# Creazione della cartella per salvare le risposte
-output_dir = "http_responses"
-os.makedirs(output_dir, exist_ok=True)
+# Directory per salvare i log
+LOG_DIR = "http_request_logs"
 
-# Configurare una sessione persistente
-session = requests.Session()
-session.headers.update({"User-Agent": "CybersecurityScript/1.0"})
+# Crea la cartella di log se non esiste
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
 
-# Funzione per eseguire una richiesta HTTP
-def perform_request(method, url, data=None):
+def save_log(method, url, response):
+    """Salva i dettagli della richiesta e della risposta in un file di log."""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{LOG_DIR}/{method}_{url.replace('/', '_')}_{timestamp}.txt"
+    with open(filename, "w", encoding="utf-8") as file:
+        file.write(f"Metodo HTTP: {method}\n")
+        file.write(f"URL completo: {url}\n")
+        file.write(f"Status Code: {response.status_code}\n")
+        file.write(f"Headers:\n{response.headers}\n\n")
+        
+        if method not in ["HEAD"]:  # HEAD non ha un corpo nella risposta
+            file.write("Risposta:\n")
+            file.write(response.text)
+    print(f"[LOG] Risposta salvata in: {filename}")
+
+def send_request(url, method, data=None, headers=None):
+    """Invia una richiesta HTTP e salva il risultato."""
     try:
         if method == "GET":
-            response = session.get(url)
+            response = requests.get(url, headers=headers)
         elif method == "POST":
-            response = session.post(url, json=data)
+            response = requests.post(url, data=data, headers=headers)
         elif method == "PUT":
-            response = session.put(url, json=data)
+            response = requests.put(url, data=data, headers=headers)
         elif method == "DELETE":
-            response = session.delete(url)
+            response = requests.delete(url, headers=headers)
+        elif method == "HEAD":
+            response = requests.head(url, headers=headers)
+        elif method == "OPTIONS":
+            response = requests.options(url, headers=headers)
         else:
-            print(f"Metodo {method} non supportato")
-            return None
+            print("[ERRORE] Metodo HTTP non supportato.")
+            return
 
-        # Stampa la risposta in modo leggibile
-        print_response_details(response)
-
-        # Salva la risposta in un file
-        save_response(url, method, response)
-        return response
+        print(f"[RISPOSTA] Status Code: {response.status_code}")
+        save_log(method, url, response)
     except requests.RequestException as e:
-        print(f"Errore durante la richiesta {method} a {url}: {e}")
-        return None
+        print(f"[ERRORE] Richiesta {method} fallita: {e}")
 
-# Funzione per stampare la risposta in modo leggibile
-def print_response_details(response):
-    print("\n--- Dettagli della Risposta HTTP ---")
-    print(f"URL: {response.url}")
-    print(f"Metodo: {response.request.method}")
-    print(f"Codice di Stato: {response.status_code}")
-    print(f"Intestazioni:\n{json.dumps(dict(response.headers), indent=4)}")
-    print(f"Contenuto della risposta:")
-    print(response.text)  # Non formattiamo il corpo come JSON, lo mostriamo direttamente
+def main():
+    print("Benvenuto nello script di test delle richieste HTTP.")
 
-# Funzione per salvare la risposta in un file
-def save_response(url, method, response):
-    file_name = f"{method}_{url.replace('/', '_').replace(':', '')}.json"
-    file_path = os.path.join(output_dir, file_name)
+    # Inserisci l'URL completo del server
+    url = input("Inserisci l'URL completo del server (es. https://192.168.1.100/DVWA/login.php): ").strip()
 
-    # Contenuto da salvare
-    response_content = {
-        "url": response.url,
-        "status_code": response.status_code,
-        "headers": dict(response.headers),
-        "content": response.text,
-    }
+    # Chiedi all'utente quale tipo di richiesta HTTP fare
+    print("\nSeleziona il tipo di richiesta HTTP:")
+    print("[1] GET")
+    print("[2] POST")
+    print("[3] PUT")
+    print("[4] DELETE")
+    print("[5] HEAD")
+    print("[6] OPTIONS")
+    method_choice = input("Inserisci il numero della scelta (1/2/3/4/5/6): ").strip()
 
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(response_content, f, indent=4)
-    print(f"Risposta salvata in {file_path}\n")
-
-# Funzione per ottenere i dati da inviare (per POST e PUT)
-def get_data_for_method(method):
-    if method in ["POST", "PUT"]:
-        data_input = input(f"Inserisci i dati in formato JSON per la richiesta {method}: ")
-        try:
-            data = json.loads(data_input)
-            return data
-        except json.JSONDecodeError:
-            print("Errore nel formato JSON. Assicurati di fornire un JSON valido.")
-            return None
-    return None
-
-# Funzione per scegliere la richiesta
-def choose_request():
-    print("Scegli il tipo di richiesta HTTP:")
-    print("1. GET")
-    print("2. POST")
-    print("3. PUT")
-    print("4. DELETE")
-    method_choice = input("Inserisci il numero corrispondente alla richiesta (1-4): ")
-
-    method_mapping = {
-        "1": "GET",
-        "2": "POST",
-        "3": "PUT",
-        "4": "DELETE",
-    }
-
-    method = method_mapping.get(method_choice)
-    if not method:
-        print("Scelta non valida.")
+    # Mappa della scelta dell'utente al metodo HTTP
+    method = None
+    if method_choice == "1":
+        method = "GET"
+    elif method_choice == "2":
+        method = "POST"
+    elif method_choice == "3":
+        method = "PUT"
+    elif method_choice == "4":
+        method = "DELETE"
+    elif method_choice == "5":
+        method = "HEAD"
+    elif method_choice == "6":
+        method = "OPTIONS"
+    else:
+        print("[ERRORE] Scelta non valida.")
         return
 
-    url = input("Inserisci l'URL della richiesta: ")
+    # Se il metodo è POST o PUT, chiedi all'utente se vuole inserire i dati (formato x-www-form-urlencoded o JSON)
+    data = None
+    headers = None
+    if method in ["POST", "PUT"]:
+        data_input = input("Vuoi inserire dei dati nel corpo della richiesta? (S/N): ").strip().upper()
+        if data_input == "S":
+            # Chiedi se si desidera usare JSON o x-www-form-urlencoded
+            data_format = input("Scegli il formato dei dati (1) JSON, (2) x-www-form-urlencoded: ").strip()
+            
+            if data_format == "1":
+                headers = {'Content-Type': 'application/json'}
+                json_data_input = input("Inserisci i dati in formato JSON (es. {'key1':'value1', 'key2':'value2'}): ").strip()
+                try:
+                    data = json.loads(json_data_input)  # Converte la stringa JSON in un dizionario
+                except json.JSONDecodeError:
+                    print("[ERRORE] JSON non valido.")
+                    return
+            elif data_format == "2":
+                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                data = input("Inserisci i dati nel formato 'key1=value1&key2=value2': ").strip()
+            else:
+                print("[ERRORE] Scelta non valida per il formato dei dati.")
+                return
 
-    # Se la richiesta è POST o PUT, chiedi i dati
-    data = get_data_for_method(method)
+    # Invia la richiesta
+    send_request(url, method, data, headers)
 
-    # Esegui la richiesta
-    perform_request(method, url, data)
-
-# Esegui il programma
 if __name__ == "__main__":
-    choose_request()
-
+    main()
 
