@@ -1,152 +1,154 @@
 import requests
 import os
+import json
 from datetime import datetime
+from urllib.parse import urlparse
 
-# Creazione di una sessione persistente
-def create_session():
-    return requests.Session()
+# Configurazione della directory per i log
+LOG_DIR = "http_request_logs"
 
-# Funzione per salvare log e risposte
-def save_response(response, action=""):
-    folder_name = "http_responses"
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
+def initialize_log_directory():
+    """Crea la directory per i log se non esiste già."""
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"{folder_name}/{action}_{timestamp}.txt"
-
-    with open(file_name, "w") as file:
-        file.write("=== Dettagli della richiesta ===\n")
-        file.write(f"URL: {response.url}\n")
-        file.write(f"Metodo: {response.request.method}\n")
-        file.write(f"Headers della richiesta: {response.request.headers}\n")
-        file.write(f"Dati della richiesta: {response.request.body}\n\n")
-        file.write("=== Dettagli della risposta ===\n")
+def save_log(method, url, response):
+    """Salva i dettagli della richiesta e della risposta in un file di log."""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    sanitized_url = url.replace("/", "_").replace(":", "_")
+    filename = f"{LOG_DIR}/{method}_{sanitized_url}_{timestamp}.txt"
+    with open(filename, "w", encoding="utf-8") as file:
+        file.write(f"Metodo HTTP: {method}\n")
+        file.write(f"URL: {url}\n")
         file.write(f"Status Code: {response.status_code}\n")
-        file.write(f"Headers della risposta: {response.headers}\n")
-        file.write(f"Contenuto della risposta:\n{response.text}")
+        file.write(f"Headers:\n{response.headers}\n\n")
+        file.write("Risposta:\n")
+        file.write(response.text)
+    print(f"[LOG] Risposta salvata in: {filename}")
 
-    print(f"Risposta salvata in: {file_name}")
+def is_valid_url(url):
+    """Verifica che l'URL fornito sia valido."""
+    parsed = urlparse(url)
+    return bool(parsed.scheme and parsed.netloc)
 
-# Funzione generica per richieste HTTP
-def send_request(session, method, url, headers=None, payload=None):
+def send_request(session, url, method, headers=None, data=None):
+    """Invia una richiesta HTTP, salva il risultato e analizza la risposta."""
     try:
-        if method == 'GET':
+        if method == "GET":
             response = session.get(url, headers=headers)
-        elif method == 'POST':
-            response = session.post(url, headers=headers, data=payload)
-        elif method == 'PUT':
-            response = session.put(url, headers=headers, data=payload)
-        elif method == 'DELETE':
+        elif method == "POST":
+            response = session.post(url, headers=headers, json=data)
+        elif method == "PUT":
+            response = session.put(url, headers=headers, json=data)
+        elif method == "DELETE":
             response = session.delete(url, headers=headers)
         else:
-            print("Metodo HTTP non valido.")
+            print("[ERRORE] Metodo HTTP non supportato.")
             return None
 
-        # Salvataggio della risposta
-        save_response(response, method)
+        print(f"[RISPOSTA] Status Code: {response.status_code}")
+        save_log(method, url, response)
         return response
-    except requests.exceptions.RequestException as e:
-        print(f"Errore durante la richiesta: {e}")
+    except requests.RequestException as e:
+        print(f"[ERRORE] Richiesta {method} fallita: {e}")
         return None
 
-# Funzione per il login con POST
-def login(session, base_url, login_endpoint):
-    print("\n=== Login ===")
-    url = f"{base_url.rstrip('/')}/{login_endpoint.lstrip('/')}"
-    username = input("Inserisci username: ").strip()
-    password = input("Inserisci password: ").strip()
-
-    # Payload per il login
-    payload = {
-        "username": username,
-        "password": password,
-        "Login": "Submit"  # Questo dipende dal nome del pulsante HTML
-    }
-
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-
-    print("\nEsempio di richiesta POST:")
-    print(f"URL: {url}")
-    print(f"Headers: {headers}")
-    print(f"Payload: {payload}\n")
-
-    # Invio della richiesta POST
-    response = send_request(session, 'POST', url, headers=headers, payload=payload)
-
-    # Verifica della risposta
-    if response and "Login failed" not in response.text:
-        print("Login avvenuto con successo!")
+def login(session, login_url, credentials):
+    """Effettua il login utilizzando i dati forniti."""
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    print("[INFO] Tentativo di login...")
+    response = session.post(login_url, data=credentials, headers=headers)
+    if "Login failed" in response.text:
+        print("[ERRORE] Login fallito. Verifica le credenziali.")
+    elif "Welcome" in response.text or "Dashboard" in response.text:
+        print("[SUCCESSO] Login effettuato con successo!")
     else:
-        print("Login fallito. Controlla le credenziali o i dettagli della richiesta.")
-
+        print("[INFO] Risposta non chiara. Verifica manualmente.")
     return response
 
-# Funzione per richiedere dati protetti
-def access_protected_page(session, base_url, endpoint):
-    url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
-    print(f"\nAccesso alla pagina protetta: {url}")
-    response = send_request(session, 'GET', url)
-
-    if response and response.status_code == 200:
-        print("Accesso avvenuto con successo!")
-        print("Contenuto della risposta:")
-        print(response.text[:500])  # Mostra solo i primi 500 caratteri
-    else:
-        print("Accesso fallito. Controlla se il login è stato eseguito correttamente.")
-
-# Menu per selezionare il tipo di richiesta
-def user_menu(session, base_url):
-    while True:
-        print("\n=== Menu ===")
-        print("1. Effettua una richiesta GET")
-        print("2. Effettua una richiesta POST")
-        print("3. Effettua una richiesta PUT")
-        print("4. Effettua una richiesta DELETE")
-        print("5. Effettua il login")
-        print("6. Accedi a una pagina protetta")
-        print("0. Esci")
-        choice = input("Scegli un'opzione: ").strip()
-
-        if choice == '1':
-            endpoint = input("Inserisci l'endpoint: ").strip()
-            url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
-            send_request(session, 'GET', url)
-        elif choice == '2':
-            endpoint = input("Inserisci l'endpoint: ").strip()
-            url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
-            payload = input("Inserisci il payload (es. key=value&key2=value2): ").strip()
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            send_request(session, 'POST', url, headers=headers, payload=payload)
-        elif choice == '3':
-            endpoint = input("Inserisci l'endpoint: ").strip()
-            url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
-            payload = input("Inserisci il payload (es. key=value&key2=value2): ").strip()
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            send_request(session, 'PUT', url, headers=headers, payload=payload)
-        elif choice == '4':
-            endpoint = input("Inserisci l'endpoint: ").strip()
-            url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
-            send_request(session, 'DELETE', url)
-        elif choice == '5':
-            login_endpoint = input("Inserisci l'endpoint per il login (es: login.php): ").strip()
-            login(session, base_url, login_endpoint)
-        elif choice == '6':
-            endpoint = input("Inserisci l'endpoint della pagina protetta: ").strip()
-            access_protected_page(session, base_url, endpoint)
-        elif choice == '0':
-            print("Uscita...")
-            break
-        else:
-            print("Scelta non valida. Riprova.")
-
-# Funzione principale
 def main():
-    base_url = input("Inserisci l'URL del web server (es: http://127.0.0.1/DVWA): ").strip()
-    session = create_session()
-    user_menu(session, base_url)
+    # Inizializza la directory dei log
+    initialize_log_directory()
+
+    # Inserisci l'URL per il login
+    login_url = input("Inserisci l'URL di login (es. http://127.0.0.1/DVWA/login.php): ").strip()
+    if not is_valid_url(login_url):
+        print("[ERRORE] L'URL fornito non è valido. Assicurati di includere http:// o https://.")
+        return
+
+    # Credenziali di login
+    print("\nInserisci le credenziali di login:")
+    username = input("Username: ").strip()
+    password = input("Password: ").strip()
+    credentials = {
+        "username": username,
+        "password": password
+    }
+
+    # Inizializza una sessione
+    session = requests.Session()
+
+    # Effettua il login
+    login(session, login_url, credentials)
+
+    # Inserisci l'URL della risorsa protetta
+    url = input("\nInserisci l'URL completo della risorsa (es. http://127.0.0.1/DVWA/some_protected_page.php): ").strip()
+    if not is_valid_url(url):
+        print("[ERRORE] L'URL fornito non è valido.")
+        return
+
+    # Seleziona il tipo di richiesta HTTP
+    print("\nSeleziona il tipo di richiesta HTTP:")
+    print("[1] GET")
+    print("[2] POST")
+    print("[3] PUT")
+    print("[4] DELETE")
+    method_choice = input("Inserisci il numero della scelta (1/2/3/4): ").strip()
+
+    method = None
+    if method_choice == "1":
+        method = "GET"
+    elif method_choice == "2":
+        method = "POST"
+    elif method_choice == "3":
+        method = "PUT"
+    elif method_choice == "4":
+        method = "DELETE"
+    else:
+        print("[ERRORE] Scelta non valida.")
+        return
+
+    # Header personalizzati
+    headers = {}
+    while input("\nVuoi aggiungere un header personalizzato? (s/n): ").lower() == "s":
+        header_name = input("Inserisci il nome dell'header (es. Authorization): ").strip()
+        header_value = input(f"Inserisci il valore per {header_name}: ").strip()
+        headers[header_name] = header_value
+
+    # Dati da inviare (solo per POST o PUT)
+    data = None
+    if method in ["POST", "PUT"]:
+        print("\nSeleziona il formato dei dati:")
+        print("[1] Parametri (es. chiave1=valore1&chiave2=valore2)")
+        print("[2] JSON")
+        data_format = input("Scegli il formato dei dati (1/2): ").strip()
+        if data_format == "1":
+            raw_data = input("Inserisci i dati (es. chiave1=valore1&chiave2=valore2): ").strip()
+            data = dict(item.split("=") for item in raw_data.split("&"))
+        elif data_format == "2":
+            raw_data = input("Inserisci i dati JSON (es. {\"chiave\": \"valore\"}): ").strip()
+            try:
+                data = json.loads(raw_data)
+            except json.JSONDecodeError:
+                print("[ERRORE] Il JSON fornito non è valido.")
+                return
+
+    # Invia la richiesta
+    response = send_request(session, url, method, headers=headers, data=data)
+    if response:
+        print("[INFO] Contenuto della risposta:")
+        print(response.text)
 
 if __name__ == "__main__":
     main()
+
