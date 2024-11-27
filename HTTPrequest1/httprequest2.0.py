@@ -3,15 +3,26 @@ import json
 import os
 from datetime import datetime
 
-# Funzione per ottenere i dati dall'utente
+# Funzione per ottenere input utente in modo user-friendly
+def user_friendly_input(prompt, allow_json=False):
+    while True:
+        user_input = input(prompt).strip()
+        if allow_json and user_input:
+            try:
+                return json.loads(user_input)
+            except json.JSONDecodeError:
+                print("Errore: non è un JSON valido. Riprova.")
+        else:
+            return user_input
+
+# Funzione per configurare la richiesta
 def get_user_input():
     print("\n=== Configurazione della richiesta ===")
-    url = input("Inserisci l'URL (es: http://127.0.0.1/DVWA/): ").strip()
+    url = input("Inserisci l'URL del web server (es: http://127.0.0.1/DVWA): ").strip()
     endpoint = input("Inserisci l'endpoint (es: login.php): ").strip()
     method = input("Inserisci il metodo HTTP (GET, POST, PUT, DELETE): ").strip().upper()
     headers = {}
-    use_headers = input("Vuoi aggiungere headers personalizzati? (s/n): ").strip().lower()
-    if use_headers == 's':
+    if input("Vuoi aggiungere headers personalizzati? (s/n): ").strip().lower() == 's':
         while True:
             key = input("Header key (lascia vuoto per terminare): ").strip()
             if not key:
@@ -21,29 +32,23 @@ def get_user_input():
 
     payload = None
     if method in ['POST', 'PUT']:
-        use_payload = input("Vuoi aggiungere un payload? (s/n): ").strip().lower()
-        if use_payload == 's':
-            payload = input("Inserisci il payload in formato JSON: ").strip()
-            try:
-                payload = json.loads(payload)
-            except json.JSONDecodeError:
-                print("Errore: il payload non è un JSON valido.")
-                return None
+        print("Inserisci il payload. Usa formato JSON (esempio: {\"username\": \"admin\", \"password\": \"password\"})")
+        payload = user_friendly_input("Payload: ", allow_json=True)
 
     return url, endpoint, method, headers, payload
 
-# Funzione per inviare la richiesta
-def send_request(url, endpoint, method, headers, payload):
+# Funzione per inviare richieste mantenendo la sessione
+def send_request(session, url, endpoint, method, headers, payload):
     full_url = f"{url.rstrip('/')}/{endpoint.lstrip('/')}"
     try:
         if method == 'GET':
-            response = requests.get(full_url, headers=headers)
+            response = session.get(full_url, headers=headers)
         elif method == 'POST':
-            response = requests.post(full_url, headers=headers, data=payload)
+            response = session.post(full_url, headers=headers, data=payload)
         elif method == 'PUT':
-            response = requests.put(full_url, headers=headers, data=payload)
+            response = session.put(full_url, headers=headers, data=payload)
         elif method == 'DELETE':
-            response = requests.delete(full_url, headers=headers)
+            response = session.delete(full_url, headers=headers)
         else:
             print("Metodo HTTP non supportato.")
             return None
@@ -53,18 +58,15 @@ def send_request(url, endpoint, method, headers, payload):
         print(f"Errore nella richiesta: {e}")
         return None
 
-# Funzione per salvare la richiesta e risposta in un file
+# Funzione per salvare la risposta
 def save_response(request_data, response):
-    # Creare una cartella per i log
     folder_name = "http_logs"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
 
-    # Nome file basato sul timestamp
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     file_name = f"{folder_name}/log_{timestamp}.txt"
 
-    # Preparare il contenuto del file
     with open(file_name, "w") as file:
         file.write("=== Dettagli della richiesta ===\n")
         file.write(f"URL: {request_data['url']}\n")
@@ -101,24 +103,17 @@ def parse_response(response):
     except ValueError:
         print(response.text)
 
-    if "Login Failed" in response.text:
-        print("\nRisultato: Login fallito.")
-    elif "Welcome" in response.text or "Success" in response.text:
-        print("\nRisultato: Login avvenuto con successo.")
-    else:
-        print("\nImpossibile determinare il risultato del login.")
-
 # Funzione principale
 def main():
+    session = requests.Session()  # Manteniamo una sessione per il cookie di autenticazione
     while True:
         user_input = get_user_input()
         if not user_input:
             continue
         url, endpoint, method, headers, payload = user_input
-        response = send_request(url, endpoint, method, headers, payload)
+        response = send_request(session, url, endpoint, method, headers, payload)
 
         if response:
-            # Salvataggio della richiesta e risposta
             request_data = {
                 "url": url,
                 "endpoint": endpoint,
