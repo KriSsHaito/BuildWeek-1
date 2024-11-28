@@ -8,9 +8,13 @@ url = input("http://<indirizzo-web-server>: ")
 # Lista dei verbi HTTP da testare, inclusi OPTIONS
 http_methods = ["OPTIONS", "GET", "POST", "PUT", "DELETE"]
 
+# Creazione della cartella dei log
+log_dir = "http_requests_logs"
+os.makedirs(log_dir, exist_ok=True)  # Crea la cartella se non esiste
+
 # Creazione del file di log con timestamp
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_file_path = f"http_requests_log_{timestamp}.txt"
+log_file_path = os.path.join(log_dir, f"http_requests_log_{timestamp}.txt")
 
 # Creazione del file di log per questa sessione
 with open(log_file_path, "w") as log_file:
@@ -67,3 +71,4 @@ for method in http_methods:
 
 # Output finale nella console
 print(f"Log salvato in: {log_file_path}")
+print(f"I file di log sono salvati nella cartella: {log_dir}")
