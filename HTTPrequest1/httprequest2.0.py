@@ -1,18 +1,25 @@
 import os
 import requests
+from datetime import datetime
 
 # URL del web server da testare
-url = input("http://<indirizzo-web-server>": )
+url = input("http://<indirizzo-web-server>: ")
 
 # Lista dei verbi HTTP da testare, inclusi OPTIONS
 http_methods = ["OPTIONS", "GET", "POST", "PUT", "DELETE"]
 
-# Cartella per salvare i log
-log_directory = "http_logs"
+# Creazione della cartella dei log
+log_dir = "http_requests_logs"
+os.makedirs(log_dir, exist_ok=True)  # Crea la cartella se non esiste
 
-# Creazione della cartella se non esiste
-if not os.path.exists(log_directory):
-    os.makedirs(log_directory)
+# Creazione del file di log con timestamp
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+log_file_path = os.path.join(log_dir, f"http_requests_log_{timestamp}.txt")
+
+# Creazione del file di log per questa sessione
+with open(log_file_path, "w") as log_file:
+    log_file.write("== LOG DELLE RICHIESTE HTTP ==\n")
+    log_file.write(f"URL testato: {url}\n\n")
 
 # Dizionario per salvare i risultati
 results = {}
@@ -46,21 +53,22 @@ for method in http_methods:
         log_content += f"Headers: {response.headers}\n"
         if method == "OPTIONS":
             log_content += f"Allowed Methods: {results[method]['allowed_methods']}\n"
-        
-        # Salvataggio in un file separato per ogni verbo HTTP
-        log_file_path = os.path.join(log_directory, f"{method}_log.txt")
-        with open(log_file_path, "w") as log_file:
+        log_content += "-" * 50 + "\n"
+
+        # Aggiunta al file di log unico
+        with open(log_file_path, "a") as log_file:
             log_file.write(log_content)
     
     except Exception as e:
         # Gestione degli errori
+        error_content = f"Metodo: {method}\nErrore: {str(e)}\n"
+        error_content += "-" * 50 + "\n"
         results[method] = {"error": str(e)}
-        log_file_path = os.path.join(log_directory, f"{method}_error_log.txt")
-        with open(log_file_path, "w") as log_file:
-            log_file.write(f"Errore durante il metodo {method}: {str(e)}\n")
+        
+        # Aggiunta dell'errore al file di log unico
+        with open(log_file_path, "a") as log_file:
+            log_file.write(error_content)
 
-# Output dei risultati (per la console)
-for method, result in results.items():
-    print(f"\nMetodo: {method}")
-    for key, value in result.items():
-        print(f"{key}: {value}")
+# Output finale nella console
+print(f"Log salvato in: {log_file_path}")
+print(f"I file di log sono salvati nella cartella: {log_dir}")
