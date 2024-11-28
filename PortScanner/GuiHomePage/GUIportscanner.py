@@ -2,18 +2,27 @@ import tkinter
 from tkinter import scrolledtext
 from portscanner import scan_ports
 import threading
-import queue 
+import queue
+import os
+import subprocess
+
 
 
 
 finestra = tkinter.Tk()
 finestra.title("Port Scanner")
-finestra.geometry("400x600")
+finestra.geometry("400x610")
 finestra.configure(bg="#e7cf8a")
 
 frame = tkinter.Frame(bg="#e7cf8a") #Container
 
 ##################################################
+
+#PathPrincipale
+directory_attuale_GUI = os.path.dirname(os.path.abspath(__file__))
+
+
+
 
 #Script
 
@@ -39,6 +48,10 @@ def scansiona(): #Bottone
         result_text.insert(tkinter.END, f"Porta {port} aperta\n")
 
 
+def Home():
+    finestra.destroy()
+    Path_Home = os.path.join(directory_attuale_GUI, "eseguibile2.py")
+    subprocess.run(["python", Path_Home])
 
     
 scan_thread = threading.Thread(target=scansiona)
@@ -55,8 +68,9 @@ inserisci_Host = tkinter.Entry(frame)
 spazio_portainizio = tkinter.Label(frame, text= "Port range", bg="#e7cf8a", font=("Arial", 12, "bold") )
 inserisci_portainizio = tkinter.Entry(frame)
 inserisci_portafine = tkinter.Entry(frame)
-bottone_scansiona = tkinter.Button(frame, text="SCANSIONA", bg="black", fg="#e7cf8a", font=("Arial", 12, "bold"), command=scansiona)
+bottone_scansiona = tkinter.Button(frame, text="SCANSIONA", bg="black", fg="#e7cf8a", font=("Arial", 14, "bold"), command=scansiona )
 result_text = scrolledtext.ScrolledText(frame, width=30, height=17)
+bottone_home = tkinter.Button(frame, text="HOME", command=Home)
 
 #Posizionamento degli Widget
 spazio_titolo.grid(row=0, column=0, columnspan=2, sticky="news", pady=20) #columnspan sta a indicare che deve occupare 2 colonne
@@ -65,10 +79,16 @@ inserisci_Host.grid(row=1, column=1, pady=10)
 spazio_portainizio.grid(row=2, column=0)
 inserisci_portainizio.grid(row=2, column=1, pady=0)
 inserisci_portafine.grid(row=3, column=1, pady=10)
-bottone_scansiona.grid(row=4, column=0, columnspan=2, pady=12)
-result_text.grid(row=5,column=0, columnspan=2, pady=12)
+bottone_scansiona.grid(row=4, column=0, columnspan=2, pady=10)
+result_text.grid(row=5,column=0, columnspan=2, pady=5)
+bottone_home.grid(row=6, column=0, columnspan=2, pady=10)
 
-frame.pack()
+frame.pack(side="top", pady=0)
+
+# Impostiamo il peso (weight) per la riga e le colonne in modo che possano espandersi correttamente
+frame.grid_rowconfigure(6, weight=1)  # Per la riga 6 (dove c'è il bottone "HOME")
+frame.grid_columnconfigure(0, weight=1)  
+frame.grid_columnconfigure(1, weight=1)  
 
 
 
