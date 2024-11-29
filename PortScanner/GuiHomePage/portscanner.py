@@ -2,12 +2,19 @@ import socket
 import threading
 import queue
 
+host = ""
+start_port = 0
+end_port = 1050
+result_queue = queue.Queue()
+
+
+
 #Funzione Scan di una singola porta
 def scanner_port(host, port, result_queue):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #oggetto socket
     sock.settimeout(1) #timeout di un secondo
 
-    result = sock.connect_ex((host, port)) #Se la connessione è riuscita è 0
+    result = sock.connect_ex((host, port)) #Se la connessione è riuscita è 0 s
 
     if result == 0:
         #print(f"La Porta {port} è APERTA")
@@ -26,18 +33,15 @@ def scan_ports(host, start_port, end_port, result_queue):
         threads.append(thread)
         thread.start()
 
-    #Attesa termine thread
+    #Attesa termine thread 
     for thread in threads:
         thread.join()
 
     
-        
 
-#Funzione Principale // viene esguita solo se portscanner.py funziona correttamente
-if __name__ == "__main__":
-    target_host = input("\n IP Host del target: ")
-    inizio_port = int(input("Digita la porta iniziale: "))
-    fine_port  = int(input("Digita la porta finale: "))
+scan_ports(host, start_port, end_port, result_queue)
 
-    print(f"Scansionando {target_host} da {inizio_port} a {fine_port}...")
-    scan_ports(target_host, inizio_port, fine_port)
+while not result_queue.empty():
+    print(f"Porta {result_queue.get()} è aperta")
+
+

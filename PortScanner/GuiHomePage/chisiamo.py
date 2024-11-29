@@ -6,12 +6,12 @@ import os
 finestra = tkinter.Tk()
 finestra.title("Port Scanner")
 finestra.geometry("400x650")
-finestra.configure(bg="#e7cf8a")
+finestra.configure(bg="#1e2460")
 
 #Os Directory
 directory_attuale_GUI = os.path.dirname(os.path.abspath(__file__))
 
-frame = tkinter.Frame(bg="#e7cf8a") #Container
+frame = tkinter.Frame(bg="#1e2460") #Container
 
 def Home():
     finestra.destroy()
@@ -20,8 +20,14 @@ def Home():
 
 
 #Widget
-chisiamo = tkinter.Label(frame,  text="Chi Siamo",background="#e7cf8a", font=("Arial", 30, "bold"))
-didascalia = tkinter.Text(frame, width=38, height=27, wrap=tkinter.WORD, padx=30, pady=20)
+chisiamo = tkinter.Label(frame,  text="Chi Siamo",
+    background="#1e2460", fg="white",font=("Arial", 30, "bold")
+    )
+
+didascalia = tkinter.Text(frame, width=38, height=27, 
+    wrap=tkinter.WORD, padx=30, pady=20
+    )
+
 bottone_home = tkinter.Button(frame, text="HOME", command=Home)
 
 #Posizionamento
